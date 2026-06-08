@@ -4,44 +4,28 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import com.toroncho.lifetrace.notification.EXTRA_PROMPT_ID
+import com.toroncho.lifetrace.notification.EXTRA_PROMPT_TEXT
+import com.toroncho.lifetrace.ui.navigation.NavGraph
 import com.toroncho.lifetrace.ui.theme.LifeTraceTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val promptId = intent.getLongExtra(EXTRA_PROMPT_ID, -1L).takeIf { it != -1L }
+        val promptText = intent.getStringExtra(EXTRA_PROMPT_TEXT)
+
         setContent {
             LifeTraceTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                NavGraph(
+                    initialPromptId = promptId,
+                    initialPromptText = promptText,
+                )
             }
         }
-    }
-}
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    LifeTraceTheme {
-        Greeting("Android")
     }
 }
