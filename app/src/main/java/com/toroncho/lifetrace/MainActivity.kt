@@ -10,8 +10,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import com.toroncho.lifetrace.notification.EXTRA_PROMPT_ID
+import androidx.activity.viewModels
 import com.toroncho.lifetrace.notification.EXTRA_PROMPT_TEXT
+import com.toroncho.lifetrace.ui.MainViewModel
 import com.toroncho.lifetrace.ui.navigation.NavGraph
 import com.toroncho.lifetrace.ui.theme.LifeTraceTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -19,34 +20,40 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    private val mainViewModel: MainViewModel by viewModels()
+
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
         requestPermissionsIfNeeded()
-
-        val promptId = intent.getLongExtra(EXTRA_PROMPT_ID, -1L).takeIf { it != -1L }
-        val promptText = intent.getStringExtra(EXTRA_PROMPT_TEXT)
+        handleIntent(intent)
 
         setContent {
             LifeTraceTheme {
-                NavGraph(
-                    initialPromptId = promptId,
-                    initialPromptText = promptText,
-                )
+                NavGraph(mainViewModel = mainViewModel)
             }
         }
     }
 
+    // アプリ起動中に通知タップされた場合はこちらが呼ばれる
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val promptText = intent.getStringExtra(EXTRA_PROMPT_TEXT) ?: return
+        mainViewModel.onPromptReceived(promptText)
+    }
+
     private fun requestPermissionsIfNeeded() {
-        // POST_NOTIFICATIONS（Android 13+）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             requestNotificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
-        // SCHEDULE_EXACT_ALARM（Android 12+）：設定画面へ誘導
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val alarmManager = getSystemService(AlarmManager::class.java)
             if (!alarmManager.canScheduleExactAlarms()) {

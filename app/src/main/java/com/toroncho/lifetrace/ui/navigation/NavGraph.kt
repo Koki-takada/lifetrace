@@ -1,13 +1,15 @@
 package com.toroncho.lifetrace.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.toroncho.lifetrace.notification.EXTRA_PROMPT_ID
-import com.toroncho.lifetrace.notification.EXTRA_PROMPT_TEXT
+import com.toroncho.lifetrace.ui.MainViewModel
 import com.toroncho.lifetrace.ui.editor.EditorScreen
 import com.toroncho.lifetrace.ui.home.HomeScreen
 import com.toroncho.lifetrace.ui.settings.SettingsScreen
@@ -15,14 +17,20 @@ import com.toroncho.lifetrace.ui.settings.SettingsScreen
 private const val DEFAULT_PROMPT = "今何を考えていますか？"
 
 @Composable
-fun NavGraph(
-    initialPromptId: Long?,
-    initialPromptText: String?,
-) {
+fun NavGraph(mainViewModel: MainViewModel) {
     val navController = rememberNavController()
-    val startDestination = if (initialPromptId != null) "editor" else "home"
+    val pendingPromptText by mainViewModel.pendingPromptText.collectAsState()
 
-    NavHost(navController = navController, startDestination = startDestination) {
+    // 通知タップ時（onCreate / onNewIntent どちらの場合も）エディタ画面へ遷移
+    LaunchedEffect(pendingPromptText) {
+        if (pendingPromptText != null) {
+            navController.navigate("editor") {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    NavHost(navController = navController, startDestination = "home") {
         composable("home") {
             HomeScreen(
                 onNewEntry = { navController.navigate("editor") },
@@ -41,17 +49,18 @@ fun NavGraph(
         ) { backStack ->
             val entryId = backStack.arguments?.getLong("entryId")?.takeIf { it != -1L }
             EditorScreen(
-                promptText = initialPromptText ?: DEFAULT_PROMPT,
+                promptText = DEFAULT_PROMPT,
                 entryId = entryId,
                 onBack = { navController.popBackStack() },
             )
         }
-        // 通知からの起動（promptIdあり）
         composable("editor") {
+            val promptText = pendingPromptText ?: DEFAULT_PROMPT
             EditorScreen(
-                promptText = initialPromptText ?: DEFAULT_PROMPT,
+                promptText = promptText,
                 entryId = null,
                 onBack = {
+                    mainViewModel.onPromptConsumed()
                     if (!navController.popBackStack()) {
                         navController.navigate("home") { popUpTo("home") { inclusive = true } }
                     }
