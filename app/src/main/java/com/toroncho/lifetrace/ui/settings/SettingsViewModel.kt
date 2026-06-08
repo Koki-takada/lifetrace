@@ -17,7 +17,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val promptRepository: PromptRepository,
     private val scheduler: NotificationScheduler,
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
     val prompts = promptRepository.getAllPrompts()
