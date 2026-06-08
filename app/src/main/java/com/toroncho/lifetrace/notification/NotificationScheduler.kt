@@ -26,19 +26,14 @@ class NotificationScheduler @Inject constructor() {
 
     fun schedulePrompt(context: Context, prompt: Prompt) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
+        // Android 12+ では exact alarm の許可が必要
+        if (!alarmManager.canScheduleExactAlarms()) return
         val pendingIntent = buildPendingIntent(context, prompt) ?: return
 
-        val (hour, minute) = prompt.scheduledTime.split(":").map { it.toInt() }
-        var triggerTime = LocalDateTime.of(LocalDate.now(), LocalTime.of(hour, minute))
-        if (triggerTime.isBefore(LocalDateTime.now())) {
-            triggerTime = triggerTime.plusDays(1)
-        }
-        val triggerMillis = triggerTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
-
-        alarmManager.setRepeating(
+        val triggerMillis = nextTriggerMillis(prompt.scheduledTime)
+        alarmManager.setExactAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             triggerMillis,
-            AlarmManager.INTERVAL_DAY,
             pendingIntent,
         )
     }
@@ -48,12 +43,13 @@ class NotificationScheduler @Inject constructor() {
         buildPendingIntent(context, prompt)?.let { alarmManager.cancel(it) }
     }
 
-    private fun buildPendingIntent(context: Context, prompt: Prompt): PendingIntent? {
+    fun buildPendingIntent(context: Context, prompt: Prompt): PendingIntent? {
         if (prompt.id == 0L) return null
         val intent = Intent(context, NotificationReceiver::class.java).apply {
             action = ACTION_SHOW_PROMPT
             putExtra(EXTRA_PROMPT_ID, prompt.id)
             putExtra(EXTRA_PROMPT_TEXT, prompt.text)
+            putExtra(EXTRA_SCHEDULED_TIME, prompt.scheduledTime)
         }
         return PendingIntent.getBroadcast(
             context,
@@ -61,5 +57,14 @@ class NotificationScheduler @Inject constructor() {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+    }
+
+    companion object {
+        fun nextTriggerMillis(scheduledTime: String): Long {
+            val (hour, minute) = scheduledTime.split(":").map { it.toInt() }
+            var trigger = LocalDateTime.of(LocalDate.now(), LocalTime.of(hour, minute))
+            if (!trigger.isAfter(LocalDateTime.now())) trigger = trigger.plusDays(1)
+            return trigger.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
     }
 }

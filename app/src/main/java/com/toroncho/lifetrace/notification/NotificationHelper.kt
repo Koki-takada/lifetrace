@@ -12,6 +12,7 @@ import com.toroncho.lifetrace.R
 const val CHANNEL_ID = "lifetrace_daily_prompt"
 const val EXTRA_PROMPT_TEXT = "prompt_text"
 const val EXTRA_PROMPT_ID = "prompt_id"
+const val EXTRA_SCHEDULED_TIME = "scheduled_time"
 
 object NotificationHelper {
 

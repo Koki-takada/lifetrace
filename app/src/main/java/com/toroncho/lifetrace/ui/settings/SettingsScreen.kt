@@ -105,55 +105,64 @@ private fun PromptItem(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddPromptDialog(
     onDismiss: () -> Unit,
     onConfirm: (text: String, time: String) -> Unit,
 ) {
-    var text by remember { mutableStateOf("") }
-    var time by remember { mutableStateOf("") }
-    var timeError by remember { mutableStateOf(false) }
+    var promptText by remember { mutableStateOf("") }
+    var showTimePicker by remember { mutableStateOf(false) }
+    val timePickerState = rememberTimePickerState(initialHour = 9, initialMinute = 0, is24Hour = true)
 
-    val timeRegex = Regex("^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    val selectedTime = "%02d:%02d".format(timePickerState.hour, timePickerState.minute)
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("問いかけを追加") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text("問いかけ文") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = time,
-                    onValueChange = {
-                        time = it
-                        timeError = false
-                    },
-                    label = { Text("通知時刻 (HH:mm)") },
-                    placeholder = { Text("例: 09:00") },
-                    isError = timeError,
-                    supportingText = if (timeError) ({ Text("HH:mm 形式で入力してください") }) else null,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (!timeRegex.matches(time)) {
-                        timeError = true
-                        return@TextButton
+    if (showTimePicker) {
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            title = { Text("通知時刻を選択") },
+            text = {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    TimePicker(state = timePickerState)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) { Text("キャンセル") }
+            },
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("問いかけを追加") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = promptText,
+                        onValueChange = { promptText = it },
+                        label = { Text("問いかけ文") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2,
+                    )
+                    OutlinedButton(
+                        onClick = { showTimePicker = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("通知時刻: $selectedTime")
                     }
-                    if (text.isNotBlank()) onConfirm(text.trim(), time)
-                },
-            ) { Text("追加") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("キャンセル") }
-        },
-    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { if (promptText.isNotBlank()) onConfirm(promptText.trim(), selectedTime) },
+                    enabled = promptText.isNotBlank(),
+                ) { Text("追加") }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text("キャンセル") }
+            },
+        )
+    }
 }
